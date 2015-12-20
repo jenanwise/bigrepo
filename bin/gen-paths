@@ -1,0 +1,82 @@
+#!/usr/bin/env python3
+"""
+Generate random filepaths in the shape of a repo.
+
+E.x. generate a tree of 30000 filenames with 10, then 30, then 100
+nodes at each successive level:
+
+    gen-paths 10 30 100
+
+E.x. the same as above but create the files in addition to printing
+to stdout:
+
+    gen-paths --create 10 30 100
+"""
+import argparse
+import itertools
+import os
+import random
+
+
+def words(words_file_path):
+    with open(words_file_path) as fp:
+        result = [line.strip() for line in fp]
+    random.shuffle(result)
+    return itertools.cycle(result)
+
+
+def paths(words, size, *sizes):
+    for _ in range(size):
+        name = next(words)
+        if sizes:
+            for sub in paths(words, *sizes):
+                yield os.path.join(name, sub)
+        else:
+            yield name
+
+
+def touch(path):
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, 'a'):
+        pass
+
+
+def main():
+    desc = __doc__.strip().splitlines()[0]
+    parser = argparse.ArgumentParser(description=desc)
+    parser.add_argument(
+        "--words",
+        dest="words_file_path",
+        metavar="path",
+        default="/usr/share/dict/words",
+        help="dictionary words file (default: /usr/share/dict/words)")
+    parser.add_argument(
+        "--create",
+        dest="create",
+        default=False,
+        action="store_true",
+        help="actually create (touch) files, don't just output paths")
+    parser.add_argument(
+        "--root",
+        dest="root",
+        metavar="root",
+        default=None,
+        help="root directory for all generate paths (default: .)")
+    parser.add_argument(
+        "sizes",
+        metavar="size",
+        type=int,
+        nargs="+",
+        help="sizes for each level of the tree")
+
+    args = parser.parse_args()
+
+    for path in paths(words(args.words_file_path), *args.sizes):
+        if args.root:
+            path = os.path.join(args.root, path)
+        print(path)
+        if args.create:
+            touch(path)
+
+if __name__ == '__main__':
+    main()
